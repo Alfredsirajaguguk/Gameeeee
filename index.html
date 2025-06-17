@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Geometry Dash Sederhana</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      overflow: hidden;
+      background: #000;
+      font-family: sans-serif;
+    }
+
+    #loginScreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #111;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+    }
+
+    #loginScreen input, #loginScreen button {
+      margin: 10px;
+      padding: 10px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+    }
+
+    #loginScreen button {
+      background-color: #00ccff;
+      color: white;
+      cursor: pointer;
+    }
+
+    #loginScreen .copyright {
+      position: absolute;
+      bottom: 10px;
+      font-size: 0.8rem;
+      color: #aaa;
+    }
+
+    #logoutBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #ff4444;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 1000;
+      display: none;
+    }
+
+    #logoutConfirm {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #222;
+      padding: 20px;
+      color: white;
+      border-radius: 10px;
+      display: none;
+      z-index: 1001;
+    }
+
+    #logoutConfirm button {
+      margin: 10px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    #logoutConfirm .yes {
+      background-color: #00ccff;
+      color: white;
+    }
+
+    #logoutConfirm .no {
+      background-color: #555;
+      color: white;
+    }
+
+    #game {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: url('https://www.transparenttextures.com/patterns/stardust.png'), linear-gradient(to bottom, #222, #000);
+      background-size: cover;
+      animation: scrollBg 20s linear infinite;
+      display: none;
+    }
+
+    @keyframes scrollBg {
+      0% { background-position-x: 0; }
+      100% { background-position-x: -1000px; }
+    }
+
+    #player {
+      position: absolute;
+      bottom: 0;
+      left: 50px;
+      width: 50px;
+      height: 50px;
+      background: #00ffcc;
+      border-radius: 10px;
+    }
+
+    .obstacle {
+      position: absolute;
+      width: 30px;
+      height: 50px;
+      background: #ff5555;
+      bottom: 0;
+    }
+
+    .fly-obstacle {
+      height: 30px;
+      background: #ffaa00;
+      bottom: auto;
+      top: 100px;
+    }
+
+    #gameOver {
+      position: absolute;
+      top: 35%;
+      width: 100%;
+      text-align: center;
+      font-size: 3rem;
+      color: white;
+      opacity: 0;
+      transform: scale(0.8);
+      transition: 0.5s ease;
+    }
+
+    #retryBtn {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.5rem;
+      padding: 10px 20px;
+      background: #00ccff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 20px;
+      font-size: 1.5rem;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div id="loginScreen">
+    <h2>Login</h2>
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <div class="copyright">&copy; NathanAlfred</div>
+  </div>
+
+  <div id="logoutConfirm">
+    <p>Apakah Anda ingin logout?</p>
+    <button class="yes" onclick="confirmLogout(true)">Ya</button>
+    <button class="no" onclick="confirmLogout(false)">Tidak</button>
+  </div>
+
+  <button id="logoutBtn" onclick="logout()">Logout</button>
+
+  <div id="game">
+    <div id="player"></div>
+    <div id="gameOver">Game Over</div>
+    <button id="retryBtn">Retry</button>
+    <div id="score">Score: 0</div>
+  </div>
+
+  <script>
+    const loginScreen = document.getElementById("loginScreen");
+    const game = document.getElementById("game");
+    const player = document.getElementById("player");
+    const gameOverText = document.getElementById("gameOver");
+    const retryBtn = document.getElementById("retryBtn");
+    const scoreDisplay = document.getElementById("score");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const logoutConfirm = document.getElementById("logoutConfirm");
+
+    let jumping = false;
+    let isGameOver = false;
+    let obstacleInterval = null;
+    let score = 0;
+    let gameSpeed = 20;
+
+    const jumpSound = new Audio("jump.mp3");
+    const hitSound = new Audio("hiiittt.mp3");
+
+    function login() {
+      const user = document.getElementById("username").value;
+      const pass = document.getElementById("password").value;
+      if (user === "nathan" && pass === "12345") {
+        loginScreen.style.display = "none";
+        game.style.display = "block";
+        logoutBtn.style.display = "block";
+        resetGame();
+      } else {
+        alert("Username atau password salah!");
+      }
+    }
+
+    function logout() {
+      logoutConfirm.style.display = "block";
+    }
+
+    function confirmLogout(answer) {
+      logoutConfirm.style.display = "none";
+      if (answer) {
+        game.style.display = "none";
+        logoutBtn.style.display = "none";
+        loginScreen.style.display = "flex";
+      }
+    }
+
+    function resetGame() {
+      isGameOver = false;
+      gameOverText.style.opacity = "0";
+      gameOverText.style.transform = "scale(0.8)";
+      retryBtn.style.display = "none";
+      player.style.bottom = "0px";
+      score = 0;
+      scoreDisplay.textContent = "Score: 0";
+      gameSpeed = 20;
+
+      document.querySelectorAll('.obstacle').forEach(obs => obs.remove());
+
+      clearInterval(obstacleInterval);
+      obstacleInterval = setInterval(spawnObstacle, 1800);
+    }
+
+    function jump() {
+      if (jumping || isGameOver) return;
+      jumping = true;
+      jumpSound.currentTime = 0;
+      jumpSound.play();
+
+      let height = 0;
+      const up = setInterval(() => {
+        if (height >= 150) {
+          clearInterval(up);
+          const down = setInterval(() => {
+            if (height <= 0) {
+              clearInterval(down);
+              jumping = false;
+              player.style.bottom = "0px";
+            } else {
+              height -= 5;
+              player.style.bottom = height + "px";
+            }
+          }, 10);
+        } else {
+          height += 5;
+          player.style.bottom = height + "px";
+        }
+      }, 10);
+    }
+
+    document.addEventListener("keydown", e => {
+      if (e.code === "Space") jump();
+    });
+
+    game.addEventListener("click", jump); // Tap support
+    retryBtn.addEventListener("click", resetGame);
+
+    function spawnObstacle() {
+      if (isGameOver) return;
+      const obs = document.createElement("div");
+      obs.classList.add("obstacle");
+
+      if (Math.random() < 0.4) {
+        obs.classList.add("fly-obstacle");
+        obs.style.top = Math.floor(Math.random() * 150) + "px";
+      }
+
+      obs.style.right = "-30px";
+      game.appendChild(obs);
+
+      let pos = -30;
+      const move = setInterval(() => {
+        if (isGameOver) {
+          clearInterval(move);
+          return;
+        }
+
+        pos += 5;
+        obs.style.right = pos + "px";
+
+        const playerRect = player.getBoundingClientRect();
+        const obsRect = obs.getBoundingClientRect();
+
+        if (
+          playerRect.left < obsRect.right &&
+          playerRect.right > obsRect.left &&
+          playerRect.bottom > obsRect.top &&
+          playerRect.top < obsRect.bottom
+        ) {
+          endGame();
+          clearInterval(move);
+        }
+
+        if (pos > window.innerWidth + 30) {
+          obs.remove();
+          clearInterval(move);
+          updateScore();
+        }
+      }, gameSpeed);
+    }
+
+    function updateScore() {
+      score++;
+      scoreDisplay.textContent = "Score: " + score;
+
+      if (score % 10 === 0 && gameSpeed > 5) {
+        gameSpeed -= 2; // Increase speed every 10 points
+      }
+    }
+
+    function endGame() {
+      isGameOver = true;
+      hitSound.play();
+      gameOverText.style.opacity = "1";
+      gameOverText.style.transform = "scale(1)";
+      retryBtn.style.display = "block";
+      clearInterval(obstacleInterval);
+    }
+  </script>
+</body>
+</html>
